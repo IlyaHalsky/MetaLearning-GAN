@@ -1,5 +1,4 @@
 DS_ID,NumberOfInstances,NumberOfFeatures,NumberOfClasses,Target_Feature,DS_URL
-DS_ID,NumberOfInstances,NumberOfFeatures,NumberOfClasses,Target_Feature,DS_URL
 2,898,39,5,38,https://www.openml.org/data/v1/download/1666876/anneal.arff
 3,3196,37,2,36,https://www.openml.org/data/v1/download/3/kr-vs-kp.arff
 4,57,17,2,16,https://www.openml.org/data/v1/download/4/labor.arff
