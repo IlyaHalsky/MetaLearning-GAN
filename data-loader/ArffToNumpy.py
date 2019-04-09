@@ -68,6 +68,8 @@ def load_dataset(name_in: str, class_col_num: int) -> (np.ndarray, np.ndarray):
     data = shorted_data(data_in)
     new_data = []
     class_col = []
+    if class_col_num == -1:
+        class_col_num = len(data.dtype.descr) - 1
     for i, (name, tpe) in tqdm(enumerate(data.dtype.descr), total=len(data.dtype.descr)):
         if i != class_col_num:
             prepared = prepare_col(data[name], tpe)
@@ -88,10 +90,11 @@ if __name__ == '__main__':
     data_path = "D:\DataSets"
     file_extension = ".arff"
     save_prefix = "./datasets/np_raw/"
-    start_from = 1027
+    start_from = 1500
+    target_name = ["40588", "40589", "40590", "40591", "40592", "40593", "40594", "40595", "40596", "40597"]
 
     for i, (name, cl_col) in tqdm(enumerate(datasets), total=len(datasets)):
-        if i >= start_from:
+        if i >= start_from or name in target_name:
             try:
                 print(name)
                 path = Path(f'{save_prefix}{name}/')
