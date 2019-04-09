@@ -68,7 +68,7 @@ def load_dataset(name_in: str, class_col_num: int) -> (np.ndarray, np.ndarray):
     data = shorted_data(data_in)
     new_data = []
     class_col = []
-    for i, (name, tpe) in enumerate(data.dtype.descr):
+    for i, (name, tpe) in tqdm(enumerate(data.dtype.descr), total=len(data.dtype.descr)):
         if i != class_col_num:
             prepared = prepare_col(data[name], tpe)
             if i == 0 or (class_col_num == 0 and i == 1):
@@ -88,11 +88,12 @@ if __name__ == '__main__':
     data_path = "D:\DataSets"
     file_extension = ".arff"
     save_prefix = "./datasets/np_raw/"
-    start_from = 0
+    start_from = 1027
 
     for i, (name, cl_col) in tqdm(enumerate(datasets), total=len(datasets)):
         if i >= start_from:
             try:
+                print(name)
                 path = Path(f'{save_prefix}{name}/')
                 path.mkdir(parents=True, exist_ok=True)
 
