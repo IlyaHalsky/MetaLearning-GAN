@@ -35,7 +35,6 @@ def makeFeatures(labels_size: int, features_in: np.ndarray) -> np.ndarray:
     if features_in_size * (features_in_size - 1) / 2 < target_size - labels_size:
         degree = 10
         interaction_only = False
-        raise Exception(":(")
     else:
         degree = 2
         interaction_only = True
@@ -158,7 +157,7 @@ def prepare(dataset_name: str, dataset_in: (np.ndarray, np.ndarray), pbar: tqdm)
 
 
 if __name__ == '__main__':
-    target_size = 1000
+    target_size = 50
     raw_data_str = "./datasets/np_raw/"
     done_data_str = f"./datasets/processed_{target_size}/"
     done_data_str_raw = f"./datasets/processed_{target_size}/raw"
