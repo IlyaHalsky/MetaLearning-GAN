@@ -157,24 +157,26 @@ def prepare(dataset_name: str, dataset_in: (np.ndarray, np.ndarray), pbar: tqdm)
 
 
 if __name__ == '__main__':
-    target_size = 50
-    raw_data_str = "./datasets/np_raw/"
-    done_data_str = f"./datasets/processed_{target_size}/"
-    done_data_str_raw = f"./datasets/processed_{target_size}/raw"
-    done_data_str_path = Path(f'{done_data_str}')
-    done_data_str_path.mkdir(parents=True, exist_ok=True)
-    done_data_str_raw_path = Path(f'{done_data_str_raw}')
-    done_data_str_raw_path.mkdir(parents=True, exist_ok=True)
+    #target_size_array = [64, 128, 256]
+    target_size_array = [256]
+    for target_size in target_size_array:
+        raw_data_str = "./datasets/np_raw/"
+        done_data_str = f"./datasets/processed_{target_size}/"
+        done_data_str_raw = f"./datasets/processed_{target_size}/raw"
+        done_data_str_path = Path(f'{done_data_str}')
+        done_data_str_path.mkdir(parents=True, exist_ok=True)
+        done_data_str_raw_path = Path(f'{done_data_str_raw}')
+        done_data_str_raw_path.mkdir(parents=True, exist_ok=True)
 
-    start_from = 0
+        start_from = 0
 
-    non_processed = []
-    for (dirpath, dirnames, filenames) in walk(raw_data_str):
-        pbar = tqdm(enumerate(dirnames), total=len(dirnames))
-        for i, dirname in pbar:
-            if i >= start_from:
-                prepare_status = prepare(dirname, load(dirname), pbar)
-                if not prepare_status:
-                    non_processed.append(dirname)
+        non_processed = []
+        for (dirpath, dirnames, filenames) in walk(raw_data_str):
+            pbar = tqdm(enumerate(dirnames), total=len(dirnames))
+            for i, dirname in pbar:
+                if i >= start_from:
+                    prepare_status = prepare(dirname, load(dirname), pbar)
+                    if not prepare_status:
+                        non_processed.append(dirname)
 
-    print(non_processed)
+        print(non_processed)

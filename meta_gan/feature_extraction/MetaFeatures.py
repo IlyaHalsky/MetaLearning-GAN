@@ -6,8 +6,9 @@ from sklearn.ensemble import ExtraTreesClassifier
 
 
 class MetaFeatures:
-    def __init__(self, average_by_col=True, skewness_by_col=True, f_importanses_by_col=True):
+    def __init__(self, size: int, average_by_col=True, skewness_by_col=True, f_importanses_by_col=True):
         self.cache = {}
+        self.size = size
         self.full_average = average_by_col
         self.full_skewness = skewness_by_col
         self.full_importances = f_importanses_by_col
@@ -61,15 +62,42 @@ class MetaFeatures:
             y = data_in[:, :labels_num]
         forest.fit(x, y)
         importances = forest.feature_importances_
-        if not self.full_importances:
-            return np.array([np.average(importances)])
+        if self.full_importances:
+            result = [0.0] * labels_num
+            result.extend(importances)
+            return np.array(result)
         else:
-            return importances
+            return np.array([np.average(importances)])
+
+    def getLength(self):
+        # class labels
+        length = 4
+        # average labels
+        if self.full_average:
+            length += self.size
+        else:
+            length += 1
+        # class/num labels
+        length += self.size
+        # skewness labels
+        if self.full_skewness:
+            length += self.size
+        else:
+            length += 1
+        # sparsity label
+        length += 1
+        # importances labels
+        if self.full_importances:
+            length += self.size
+        else:
+            length += 1
+
+        return length
 
     def get(self, data_in: np.ndarray, name_in: str) -> torch.Tensor:
         (name, l_str, _) = name_in.split('_')
         if name in self.cache:
-            return self.cache[name]
+            metas = self.cache[name]
         else:
             labels_length = int(l_str)
 
@@ -80,7 +108,8 @@ class MetaFeatures:
             meta_features = np.concatenate((meta_features, self.sparsity(data_in)))
             meta_features = np.concatenate((meta_features, self.featureImportances(data_in, labels_length)))
             self.cache[name] = meta_features
-            return torch.from_numpy(meta_features).float()
+            metas = meta_features
+        return torch.from_numpy(metas).float()
 
 
 if __name__ == '__main__':
