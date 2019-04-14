@@ -130,13 +130,13 @@ class Trainer:
                 self.g_optimizer.step()
 
                 # logging
+                log = (
+                    f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
+                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
+                    f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
+                )
+                logging.info(log)
                 if (i + 1) % self.log_step == 0:
-                    log = (
-                        f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
-                        f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
-                        f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
-                    )
-                    logging.info(log)
                     print(log)
 
             # saving
