@@ -13,7 +13,7 @@ from meta_gan.feature_extraction.LambdaFeatures import LambdaFeatures
 from meta_gan.feature_extraction.MetaFeatures import MetaFeatures
 import logging
 
-logging.basicConfig(format='%(asctime)s %(message)s', filename='train.log', level=logging.DEBUG,
+logging.basicConfig(format='%(asctime)s %(message)s', filename='train-simple.log', level=logging.DEBUG,
                     datefmt='%d-%m %H:%M:%S')
 
 
@@ -96,7 +96,7 @@ class Trainer:
                 real_outputs = self.discriminator(dataset, metas)
                 d_real_labels_loss = self.cross_entropy(real_outputs[:, 1:], lambdas)
                 d_real_rf_loss = self.cross_entropy(real_outputs[:, :1], zeros)
-                d_real_loss = d_real_labels_loss + d_real_rf_loss
+                d_real_loss = d_real_labels_loss  # + d_real_rf_loss
 
                 # Get D on fake
                 fake_data = self.generator(noise, metas)
@@ -104,10 +104,11 @@ class Trainer:
                 fake_lambdas = self.getLambda(fake_data, labels_length)
                 d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
                 d_fake_rf_loss = self.cross_entropy(fake_outputs[:, :1], ones)
-                d_fake_loss = d_fake_labels_loss + d_fake_rf_loss
+                # d_fake_loss = d_fake_labels_loss + d_fake_rf_loss
 
                 # Train D
-                d_loss = d_real_loss + d_fake_loss
+                d_label_loss = (d_real_labels_loss + d_fake_labels_loss) / 2
+                d_loss = d_label_loss + d_fake_rf_loss
                 self.discriminator.zero_grad()
                 d_loss.backward()
                 self.d_optimizer.step()
@@ -131,8 +132,8 @@ class Trainer:
 
                 # logging
                 log = (
-                    f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
-                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
+                    f'Epoch[{epoch:02d}/{self.num_epochs}], Step[{i:02d}/{total_steps}],'
+                    f' D_losses: [{d_fake_rf_loss}|{d_real_labels_loss}|{d_fake_labels_loss}], '
                     f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
                 )
                 logging.info(log)
@@ -143,8 +144,9 @@ class Trainer:
             if (epoch + 1) % 10 == 0:
                 done_data_str_path = Path(self.models_path)
                 done_data_str_path.mkdir(parents=True, exist_ok=True)
-                g_path = os.path.join(self.models_path, 'generator-%d-%d.pkl' % (self.datasize, epoch + 1))
-                d_path = os.path.join(self.models_path, 'discriminator-%d-%d.pkl' % (self.datasize, epoch + 1))
+                g_path = os.path.join(self.models_path, '%sgenerator-%d-%d.pkl' % ('simple', self.datasize, epoch + 1))
+                d_path = os.path.join(self.models_path,
+                                      '%sdiscriminator-%d-%d.pkl' % ('simple', self.datasize, epoch + 1))
                 torch.save(self.generator.state_dict(), g_path)
                 torch.save(self.discriminator.state_dict(), d_path)
 
