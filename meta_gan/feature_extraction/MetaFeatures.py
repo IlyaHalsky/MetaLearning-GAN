@@ -57,9 +57,9 @@ class MetaFeatures:
                                       random_state=0)
         x = data_in[:, labels_num:]
         if labels_num == 1:
-            y = data_in[:, :labels_num].ravel()
+            y = np.clip(np.around(data_in[:, :labels_num].ravel()), 0.0, 1.0)
         else:
-            y = data_in[:, :labels_num]
+            y = np.clip(np.around(data_in[:, :labels_num]), 0.0, 1.0)
         forest.fit(x, y)
         importances = forest.feature_importances_
         if self.full_importances:
@@ -94,10 +94,10 @@ class MetaFeatures:
 
         return length
 
-    def get(self, data_in: np.ndarray, name_in: str) -> torch.Tensor:
+    def get(self, data_in: np.ndarray, name_in: str) -> (torch.Tensor, torch.Tensor):
         (name, l_str, _) = name_in.split('_')
         if name in self.cache:
-            metas = self.cache[name]
+            metas, labels_length = self.cache[name]
         else:
             labels_length = int(l_str)
 
@@ -107,8 +107,18 @@ class MetaFeatures:
             meta_features = np.concatenate((meta_features, self.skewness(data_in)))
             meta_features = np.concatenate((meta_features, self.sparsity(data_in)))
             meta_features = np.concatenate((meta_features, self.featureImportances(data_in, labels_length)))
-            self.cache[name] = meta_features
+            self.cache[name] = (meta_features, labels_length)
             metas = meta_features
+        return torch.from_numpy(metas).float(), torch.from_numpy(np.array([labels_length]))
+
+    def getShort(self, data_in: np.ndarray, labels_length: int) -> torch.Tensor:
+        meta_features = self.toBinary(labels_length)
+        meta_features = np.concatenate((meta_features, self.average(data_in)))
+        meta_features = np.concatenate((meta_features, self.class_or_num(data_in)))
+        meta_features = np.concatenate((meta_features, self.skewness(data_in)))
+        meta_features = np.concatenate((meta_features, self.sparsity(data_in)))
+        meta_features = np.concatenate((meta_features, self.featureImportances(data_in, labels_length)))
+        metas = meta_features
         return torch.from_numpy(metas).float()
 
 

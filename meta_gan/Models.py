@@ -74,16 +74,10 @@ class Discriminator(nn.Module):
         # out (?, data_size / 2, 32, 32)
         first_kernel = self.first_kernel_dict[data_size]
         first_stride = self.first_stride_dict[data_size]
-        self.conv_1_data = nn.Conv2d(in_channels=1,
-                                     out_channels=int(self.data_size / 2), kernel_size=first_kernel,
-                                     stride=first_stride,
-                                     padding=1)
-        # in (?, lambda_length, 1, 1)
-        # out (?, data_size / 2, data_size / 2, data_size / 2)
-        first_size = self.first_size_dict[data_size]
-        self.conv_1_meta = nn.ConvTranspose2d(in_channels=self.meta_length,
-                                              out_channels=int(self.data_size / 2), kernel_size=32, stride=1, padding=0)
-
+        self.conv_1 = nn.Conv2d(in_channels=1,
+                                out_channels=self.data_size, kernel_size=first_kernel,
+                                stride=first_stride,
+                                padding=1)
         # in (?, data_size, 32, 32)
         # out (?, data_size * 2, 16, 16)
         second_kernel = self.second_kernel_dict[data_size]
@@ -97,17 +91,18 @@ class Discriminator(nn.Module):
         # out (?, data_size * 8, 4, 4)
         self.conv_4 = nn.Conv2d(in_channels=self.data_size * 4,
                                 out_channels=self.data_size * 8, kernel_size=4, stride=2, padding=1)
-        # out (?, lambda_length, 1, 1)
-        self.fc = nn.Conv2d(in_channels=self.data_size * 8,
-                            out_channels=self.lambda_length, kernel_size=4, stride=1, padding=0)
+        # out (?, self.data_size * 16, 1, 1)
+        self.conv_5 = nn.Conv2d(in_channels=self.data_size * 8,
+                                out_channels=self.data_size * 16, kernel_size=4, stride=1, padding=0)
+
+        self.fc = nn.Linear(in_features=self.data_size * 16 + self.meta_length, out_features=self.lambda_length + 1)
 
     def forward(self, data, meta):
-        conv1_data = F.leaky_relu(self.conv_1_data(data), 0.2)
-        conv1_meta = F.relu(self.conv_1_meta(meta))
-
-        conv1 = torch.cat((conv1_data, conv1_meta), 1)
+        conv1 = F.leaky_relu(self.conv_1(data), 0.2)
         conv2 = F.leaky_relu(self.conv_2(conv1), 0.2)
         conv3 = F.leaky_relu(self.conv_3(conv2), 0.2)
         conv4 = F.leaky_relu(self.conv_4(conv3), 0.2)
-        out = self.fc(conv4).squeeze()
-        return out
+        conv5 = F.leaky_relu(self.conv_5(conv4), 0.2)
+        concat = torch.cat((conv5, meta), 1)
+        result = F.sigmoid(self.fc(concat.squeeze()))
+        return result

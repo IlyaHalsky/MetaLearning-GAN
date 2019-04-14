@@ -26,19 +26,18 @@ class DatasetFolder(data.Dataset):
         data_path = self.data_paths[index]
         data_name = self.data_names[index]
         data_np = np.load(data_path)
-        dataset_tensor = torch.from_numpy(data_np).float().view(1, self.size, self.size)
+        dataset_tensor = torch.from_numpy(data_np).float().view((1, self.size, self.size))
 
-        meta_tensor = self.meta_features.get(data_np, data_name) \
-            .view(self.meta_features.getLength(), 1, 1)
-        lambda_tensor = self.lambda_features.get(data_np, name_in=data_name) \
-            .view(self.lambda_features.getLength(), 1, 1)
-        return dataset_tensor, meta_tensor, lambda_tensor
+        meta_tensor, labels_length = self.meta_features.get(data_np, data_name)
+        meta_tensor = meta_tensor.view(self.meta_features.getLength(), 1, 1)
+        lambda_tensor = self.lambda_features.get(data_np, name_in=data_name, real=True)
+        return dataset_tensor, meta_tensor, lambda_tensor, labels_length
 
     def __len__(self):
         return len(self.data_paths)
 
 
-def get_loader(path: str, size:int, meta: MetaFeatures, lambdas: LambdaFeatures, batch_size: int, num_workers: int):
+def get_loader(path: str, size: int, meta: MetaFeatures, lambdas: LambdaFeatures, batch_size: int, num_workers: int):
     datasets_inner = DatasetFolder(path, size, meta, lambdas)
 
     data_loader = data.DataLoader(

@@ -8,7 +8,7 @@ from meta_gan.feature_extraction.MetaFeatures import MetaFeatures
 if __name__ == '__main__':
     datasize = 64
     z_size = 100
-    batch_size = 50
+    batch_size = 100
     workers = 2
     lambdas = LambdaFeatures()
     metas = MetaFeatures(datasize)
