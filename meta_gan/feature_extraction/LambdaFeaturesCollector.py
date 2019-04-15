@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-class LambdaFeatures:
+class LambdaFeaturesCollector:
     models_default = [
         OneVsRestClassifier(LinearSVC(random_state=0)),
         KNeighborsClassifier(),
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     from sklearn import datasets
 
     iris = datasets.load_iris()
-    lambdas_lul = LambdaFeatures()
+    lambdas_lul = LambdaFeaturesCollector()
     results = lambdas_lul.get(np.concatenate((iris.target.reshape(-1, 1), iris.data), axis=1), 1, "lul")
     print(results)
     results = lambdas_lul.get(np.concatenate((iris.target.reshape(-1, 1), iris.data), axis=1), 1, "lul2")

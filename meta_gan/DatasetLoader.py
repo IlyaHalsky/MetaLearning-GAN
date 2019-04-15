@@ -3,13 +3,13 @@ import os
 import torch
 from torch.utils import data
 import numpy as np
-from meta_gan.feature_extraction.MetaFeatures import MetaFeatures
-from meta_gan.feature_extraction.LambdaFeatures import LambdaFeatures
+from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
+from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
 
 
 class DatasetFolder(data.Dataset):
 
-    def __init__(self, path: str, size: int, meta: MetaFeatures, lambdas: LambdaFeatures):
+    def __init__(self, path: str, size: int, meta: MetaFeaturesCollector, lambdas: LambdaFeaturesCollector):
         self.root = path
         self.size = size
         paths = []
@@ -37,7 +37,7 @@ class DatasetFolder(data.Dataset):
         return len(self.data_paths)
 
 
-def get_loader(path: str, size: int, meta: MetaFeatures, lambdas: LambdaFeatures, batch_size: int, num_workers: int):
+def get_loader(path: str, size: int, meta: MetaFeaturesCollector, lambdas: LambdaFeaturesCollector, batch_size: int, num_workers: int):
     datasets_inner = DatasetFolder(path, size, meta, lambdas)
 
     data_loader = data.DataLoader(
@@ -51,6 +51,6 @@ def get_loader(path: str, size: int, meta: MetaFeatures, lambdas: LambdaFeatures
 
 
 if __name__ == '__main__':
-    datasets = DatasetFolder("../processed_data/processed_50/", MetaFeatures(), LambdaFeatures())
+    datasets = DatasetFolder("../processed_data/processed_50/", MetaFeaturesCollector(), LambdaFeaturesCollector())
     for i in range(len(datasets)):
         print(datasets.__getitem__(i))

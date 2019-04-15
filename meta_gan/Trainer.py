@@ -5,12 +5,12 @@ from pathlib import Path
 import torch
 from torch import optim
 from torch.autograd import Variable
-from torch.nn import BCEWithLogitsLoss
+from torch.nn import BCEWithLogitsLoss, MSELoss
 
 from meta_gan.DatasetLoader import get_loader
 from meta_gan.Models import Generator, Discriminator
-from meta_gan.feature_extraction.LambdaFeatures import LambdaFeatures
-from meta_gan.feature_extraction.MetaFeatures import MetaFeatures
+from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
+from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
 import logging
 
 logging.basicConfig(format='%(asctime)s %(message)s', filename='train.log', level=logging.DEBUG,
@@ -18,7 +18,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', filename='train.log', leve
 
 
 class Trainer:
-    def __init__(self, num_epochs: int = 500, cuda: bool = True):
+    def __init__(self, num_epochs: int = 500, cuda: bool = True, continue_from: int = 0):
         self.datasize = 64
         self.z_size = 100
         self.batch_size = 50
@@ -26,19 +26,33 @@ class Trainer:
         self.num_epochs = num_epochs
         self.cuda = cuda
         self.log_step = 9
+        self.continue_from = continue_from
 
         self.models_path = "./models"
 
-        self.lambdas = LambdaFeatures()
-        self.metas = MetaFeatures(self.datasize)
+        self.lambdas = LambdaFeaturesCollector()
+        self.metas = MetaFeaturesCollector(self.datasize)
         self.data_loader = get_loader(f"../processed_data/processed_{self.datasize}/", self.datasize, self.metas,
                                       self.lambdas, self.batch_size,
                                       self.workers)
 
-        self.generator = Generator(self.datasize, self.metas.getLength(), self.z_size)
+        if continue_from == 0:
+            self.generator = Generator(self.datasize, self.metas.getLength(), self.z_size)
+            self.discriminator = Discriminator(self.datasize, self.metas.getLength(), self.lambdas.getLength())
+        else:
+            self.generator = Generator(self.datasize, self.metas.getLength(), self.z_size)
+            self.generator.load_state_dict(
+                torch.load(f'{self.models_path}/generator-{self.datasize}-{continue_from}.pkl'))
+            self.generator.eval()
+
+            self.discriminator = Discriminator(self.datasize, self.metas.getLength(), self.lambdas.getLength())
+            self.discriminator.load_state_dict(
+                torch.load(f'{self.models_path}/discriminator-{self.datasize}-{continue_from}.pkl'))
+            self.discriminator.eval()
+
         if self.cuda:
             self.generator.cuda()
-        self.discriminator = Discriminator(self.datasize, self.metas.getLength(), self.lambdas.getLength())
+
         if self.cuda:
             self.discriminator.cuda()
 
@@ -54,6 +68,9 @@ class Trainer:
         self.cross_entropy = BCEWithLogitsLoss()
         if self.cuda:
             self.cross_entropy.cuda()
+        self.mse = MSELoss()
+        if self.cuda:
+            self.mse.cuda()
 
     def to_variable(self, x):
         if self.cuda:
@@ -77,7 +94,7 @@ class Trainer:
     def train(self):
         total_steps = len(self.data_loader)
         logging.info(f'Starting training...')
-        for epoch in range(self.num_epochs):
+        for epoch in range(self.continue_from, self.num_epochs):
             for i, data in enumerate(self.data_loader):
                 dataset = self.to_variable(data[0])
                 metas = self.to_variable(data[1])
@@ -101,10 +118,10 @@ class Trainer:
                 # Get D on fake
                 fake_data = self.generator(noise, metas)
                 fake_outputs = self.discriminator(fake_data, metas)
-                fake_lambdas = self.getLambda(fake_data, labels_length)
-                d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
+                # fake_lambdas = self.getLambda(fake_data, labels_length)
+                # d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
                 d_fake_rf_loss = self.cross_entropy(fake_outputs[:, :1], ones)
-                d_fake_loss = d_fake_labels_loss + d_fake_rf_loss
+                d_fake_loss = d_fake_rf_loss  # + d_fake_labels_loss
 
                 # Train D
                 d_loss = d_real_loss + d_fake_loss
@@ -118,9 +135,9 @@ class Trainer:
                 noise = self.to_variable(noise)
                 fake_data = self.generator(noise, metas)
                 fake_outputs = self.discriminator(fake_data, metas)
-                g_fake_rf_loss = self.cross_entropy(fake_outputs[:, :1], ones)
+                g_fake_rf_loss = self.mse(fake_outputs[:, :1], zeros)
                 fake_metas = self.getMeta(fake_data, labels_length)
-                g_fake_meta_loss = self.cross_entropy(fake_metas, metas)
+                g_fake_meta_loss = self.mse(fake_metas, metas)
                 g_loss = g_fake_rf_loss + g_fake_meta_loss
 
                 # Train G
@@ -132,7 +149,7 @@ class Trainer:
                 # logging
                 log = (
                     f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
-                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
+                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}], '
                     f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
                 )
                 logging.info(log)

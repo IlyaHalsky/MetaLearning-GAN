@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 
 
 class Generator(nn.Module):
@@ -104,5 +103,5 @@ class Discriminator(nn.Module):
         conv4 = F.leaky_relu(self.conv_4(conv3), 0.2)
         conv5 = F.leaky_relu(self.conv_5(conv4), 0.2)
         concat = torch.cat((conv5, meta), 1)
-        result = F.sigmoid(self.fc(concat.squeeze()))
+        result = self.fc(concat.squeeze())
         return result

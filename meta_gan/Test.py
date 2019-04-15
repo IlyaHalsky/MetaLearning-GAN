@@ -2,16 +2,16 @@ import torch
 
 from meta_gan.DatasetLoader import get_loader
 from meta_gan.Models import Generator, Discriminator
-from meta_gan.feature_extraction.LambdaFeatures import LambdaFeatures
-from meta_gan.feature_extraction.MetaFeatures import MetaFeatures
+from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
+from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
 
 if __name__ == '__main__':
     datasize = 64
     z_size = 100
     batch_size = 100
     workers = 2
-    lambdas = LambdaFeatures()
-    metas = MetaFeatures(datasize)
+    lambdas = LambdaFeaturesCollector()
+    metas = MetaFeaturesCollector(datasize)
     dataloader = get_loader(f"../processed_data/processed_{datasize}/", datasize, metas, lambdas, batch_size, workers)
 
     generator = Generator(datasize, metas.getLength(), z_size)
