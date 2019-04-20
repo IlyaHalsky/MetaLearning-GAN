@@ -29,6 +29,7 @@ class Trainer:
         self.cuda = cuda
         self.log_step = 10
         self.log_step_print = 50
+        self.save_period = 5
         self.continue_from = continue_from
 
         self.models_path = "./models"
@@ -168,7 +169,7 @@ class Trainer:
                     ))
 
             # saving
-            if (epoch + 1) % 10 == 0:
+            if (epoch + 1) % self.save_period == 0:
                 done_data_str_path = Path(self.models_path)
                 done_data_str_path.mkdir(parents=True, exist_ok=True)
                 g_path = os.path.join(self.models_path,
