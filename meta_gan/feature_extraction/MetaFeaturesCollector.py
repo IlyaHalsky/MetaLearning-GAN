@@ -57,8 +57,9 @@ class MetaFeaturesCollector:
             for meta in self.meta_features[1:]:
                 meta_features = np.concatenate((meta_features, meta.getMeta(zero_in, one_in)))
             self.cache[name_in] = meta_features
-            metas = meta_features
+            metas = meta_features.reshape(1, -1)
             metas = self.min_max.transform(metas)
+            metas = metas.T
         return torch.from_numpy(metas).float()
 
     def getShort(self, stacked: np.ndarray) -> torch.Tensor:
@@ -66,8 +67,9 @@ class MetaFeaturesCollector:
         meta_features = self.meta_features[0].getMeta(zero_in, one_in)
         for meta in self.meta_features[1:]:
             meta_features = np.concatenate((meta_features, meta.getMeta(zero_in, one_in)))
-        metas = meta_features
+        metas = meta_features.reshape(1, -1)
         metas = self.min_max.transform(metas)
+        metas = metas.T
         return torch.from_numpy(metas).float()
 
     def getNumpy(self, stacked: np.ndarray) -> np.ndarray:
@@ -87,7 +89,3 @@ if __name__ == '__main__':
     print(meta.min_max.data_max_)
     print(meta.min_max.data_range_)
     print(meta.min_max.scale_)
-    arr = np.array([[1.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.1, 0.0, 0.1],
-                    [1.0, 0.0, 0.1, 0.0]])
-    print(meta.get(arr, arr - 0.5, "100_1_46"))

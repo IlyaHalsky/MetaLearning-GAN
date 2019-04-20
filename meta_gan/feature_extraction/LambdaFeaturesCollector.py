@@ -1,22 +1,16 @@
+import warnings
 from os import listdir
 from os.path import isfile, join
 
 import numpy as np
 import torch
+from sklearn.base import clone
 from sklearn.exceptions import ConvergenceWarning
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
-from sklearn.multiclass import OneVsRestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.svm import LinearSVC, SVC
-from sklearn.tree import DecisionTreeClassifier
-
-import warnings
-
+from sklearn.svm import SVC
 from tqdm import tqdm
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -25,10 +19,8 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 class LambdaFeaturesCollector:
     models_default = [
-        SVC(kernel="linear", C=0.025, random_state=0),
         KNeighborsClassifier(n_neighbors=3),
         SVC(gamma=2, C=1, random_state=0),
-        GaussianProcessClassifier(1.0 * RBF(1.0)),
         GaussianNB()
     ]
 
@@ -59,14 +51,19 @@ class LambdaFeaturesCollector:
             x = self.data(stacked[0], stacked[1])
             y = self.labels()
             lambda_features = []
-            for model in self.models:
+            for model_in in self.models:
+                model = clone(model_in)
                 scores = cross_val_score(model, x, y, cv=KFold(3, shuffle=True, random_state=0), n_jobs=self.jobs)
                 score = np.average(scores)
                 lambda_features.append(score)
             av_scores = np.array(lambda_features)
             if self.binary:
-                min_max = MinMaxScaler()
-                lambdas = min_max.fit_transform(av_scores.reshape(-1, 1))
+                zeros = np.zeros((self.getLength(),), dtype=float)
+                max_value = av_scores[av_scores.argmax()]
+                for i in range(self.getLength()):
+                    if av_scores[i] == max_value:
+                        zeros[i] = 1.0
+                lambdas = zeros
             else:
                 lambdas = av_scores
             if name_in is not None:
@@ -87,5 +84,4 @@ if __name__ == '__main__':
         stacked = np.load(f'{path}{name}')
         results.append(lambdas_lul.get(stacked, name).numpy())
     results = np.array(results)
-    print(results)
     print(np.mean(results, axis=0))
