@@ -27,7 +27,8 @@ class Trainer:
         self.workers = 5
         self.num_epochs = num_epochs
         self.cuda = cuda
-        self.log_step = 9
+        self.log_step = 10
+        self.log_step_print = 50
         self.continue_from = continue_from
 
         self.models_path = "./models"
@@ -154,14 +155,17 @@ class Trainer:
                 self.g_optimizer.step()
 
                 # logging
-                log = (
-                    f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
-                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
-                    f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
-                )
-                logging.info(log)
                 if (i + 1) % self.log_step == 0:
-                    print(log)
+                    log = (
+                        f'[[{epoch},{i}],[{d_real_rf_loss},{d_real_labels_loss},{d_fake_rf_loss},{d_fake_labels_loss}],[{g_fake_rf_loss},{g_fake_meta_loss}]]'
+                    )
+                    logging.info(log)
+                if (i + 1) % self.log_step_print == 0:
+                    print((
+                        f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
+                        f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
+                        f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
+                    ))
 
             # saving
             if (epoch + 1) % 10 == 0:
