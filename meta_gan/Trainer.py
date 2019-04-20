@@ -111,20 +111,20 @@ class Trainer:
 
                 # Get D on real
                 real_outputs = self.discriminator(dataset, metas)
-                d_real_labels_loss = self.cross_entropy(real_outputs[:, 1:], lambdas)
-                d_real_rf_loss = self.cross_entropy(real_outputs[:, :1], zeros)
+                d_real_labels_loss = self.mse(real_outputs[:, 1:], lambdas)
+                d_real_rf_loss = self.mse(real_outputs[:, :1], zeros)
                 d_real_loss = d_real_labels_loss + d_real_rf_loss
 
                 # Get D on fake
                 fake_data = self.generator(noise, metas)
                 fake_outputs = self.discriminator(fake_data, metas)
-                # fake_lambdas = self.getLambda(fake_data, labels_length)
-                # d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
-                d_fake_rf_loss = self.cross_entropy(fake_outputs[:, :1], ones)
-                d_fake_loss = d_fake_rf_loss  # + d_fake_labels_loss
+                fake_lambdas = self.getLambda(fake_data, labels_length)
+                d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
+                d_fake_rf_loss = self.mse(fake_outputs[:, :1], ones)
+                d_fake_loss = d_fake_rf_loss + 0.5 * d_fake_labels_loss
 
                 # Train D
-                d_loss = d_real_loss + d_fake_loss
+                d_loss = d_real_loss + 0.8 * d_fake_loss
                 self.discriminator.zero_grad()
                 d_loss.backward()
                 self.d_optimizer.step()
@@ -138,7 +138,7 @@ class Trainer:
                 g_fake_rf_loss = self.mse(fake_outputs[:, :1], zeros)
                 fake_metas = self.getMeta(fake_data, labels_length)
                 g_fake_meta_loss = self.mse(fake_metas, metas)
-                g_loss = g_fake_rf_loss + g_fake_meta_loss
+                g_loss = 0.5 * g_fake_rf_loss + g_fake_meta_loss
 
                 # Train G
                 self.generator.zero_grad()
@@ -149,7 +149,7 @@ class Trainer:
                 # logging
                 log = (
                     f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
-                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}], '
+                    f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
                     f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
                 )
                 logging.info(log)
