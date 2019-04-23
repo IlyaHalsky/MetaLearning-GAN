@@ -3,9 +3,11 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
+from scipy.spatial.distance import mahalanobis
 from torch import optim
 from torch.autograd import Variable
 from torch.nn import BCEWithLogitsLoss, MSELoss
+import numpy as np
 
 from meta_gan.DatasetLoader import get_loader
 from meta_gan.Models import Generator, Discriminator
@@ -40,6 +42,8 @@ class Trainer:
                                       self.features, self.instances, self.classes, self.metas,
                                       self.lambdas, self.batch_size,
                                       self.workers)
+        self.test_loader = get_loader(f"../processed_data/test/", 16, 64, 2, self.metas, self.lambdas, 100, 5,
+                                      train_meta=False)
 
         if continue_from == 0:
             self.generator = Generator(self.features, self.instances, self.classes, self.metas.getLength(), self.z_size)
@@ -86,6 +90,21 @@ class Trainer:
             x = x.cuda()
         return Variable(x)
 
+    def getDistance(self, x: torch.Tensor, y: torch.Tensor) -> [float]:
+        x_in = np.squeeze(x.cpu().detach().numpy())
+        y_in = np.squeeze(y.cpu().detach().numpy())
+        results = []
+        for (xx, yy) in zip(x_in, y_in):
+            try:
+                V = np.cov(np.array([xx, yy]).T)
+                V[np.diag_indices_from(V)] += 0.1
+                IV = np.linalg.inv(V)
+                D = mahalanobis(xx, yy, IV)
+            except:
+                D = 0.0
+            results.append(D)
+        return results
+
     def getMeta(self, data_in: torch.Tensor):
         meta_list = []
         for data in data_in:
@@ -104,6 +123,20 @@ class Trainer:
         total_steps = len(self.data_loader)
         logging.info(f'Starting training...')
         for epoch in range(self.continue_from, self.num_epochs):
+            results = []
+            print("Starting test:")
+            for i, data in enumerate(self.test_loader):
+                metas = self.to_variable(data[1])
+                batch_size = data[0].size(0)
+                noise = torch.randn(batch_size, 100)
+                noise = noise.view((noise.size(0), noise.size(1), 1, 1))
+                noise = self.to_variable(noise)
+
+                fake_data = self.generator(noise, metas)
+                fake_metas = self.getMeta(fake_data)
+                results.extend(self.getDistance(fake_metas, metas))
+            print(np.mean(np.array(results)))
+
             for i, data in enumerate(self.data_loader):
                 dataset = self.to_variable(data[0])
                 metas = self.to_variable(data[1])
@@ -121,7 +154,7 @@ class Trainer:
                 real_outputs = self.discriminator(dataset, metas)
                 d_real_labels_loss = self.mse(real_outputs[:, 1:], lambdas)
                 d_real_rf_loss = self.mse(real_outputs[:, :1], zeros)
-                d_real_loss = d_real_labels_loss + d_real_rf_loss
+                d_real_loss = d_real_labels_loss + 0.7 * d_real_rf_loss
 
                 # Get D on fake
                 fake_data = self.generator(noise, metas)
@@ -129,7 +162,7 @@ class Trainer:
                 fake_lambdas = self.getLambda(fake_data)
                 d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
                 d_fake_rf_loss = self.mse(fake_outputs[:, :1], ones)
-                d_fake_loss = d_fake_rf_loss + 0.5 * d_fake_labels_loss
+                d_fake_loss = 0.7 * d_fake_rf_loss + 0.6 * d_fake_labels_loss
 
                 # Train D
                 d_loss = d_real_loss + 0.8 * d_fake_loss
@@ -147,7 +180,7 @@ class Trainer:
                 g_fake_rf_loss = self.mse(fake_outputs[:, :1], zeros)
                 fake_metas = self.getMeta(fake_data)
                 g_fake_meta_loss = self.mse(fake_metas, metas)
-                g_loss = 0.3 * g_fake_rf_loss + g_fake_meta_loss
+                g_loss = 0.7 * g_fake_rf_loss + g_fake_meta_loss
 
                 # Train G
                 self.generator.zero_grad()

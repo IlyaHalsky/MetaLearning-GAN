@@ -10,7 +10,7 @@ from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCo
 class DatasetFolder(data.Dataset):
 
     def __init__(self, path: str, features_size: int, instances_size: int, classes_size: int,
-                 meta: MetaFeaturesCollector, lambdas: LambdaFeaturesCollector):
+                 meta: MetaFeaturesCollector, lambdas: LambdaFeaturesCollector, train_meta: bool):
         self.root = path
         self.features = features_size
         self.instances = instances_size
@@ -23,7 +23,8 @@ class DatasetFolder(data.Dataset):
         self.data_paths = paths
         self.data_names = list(map(lambda x: x.split('/')[-1].split('.')[0], paths))
         self.meta_features = meta
-        self.meta_features.train(self.root)
+        if train_meta:
+            self.meta_features.train(self.root)
         self.lambda_features = lambdas
 
     def __getitem__(self, index) -> (torch.Tensor, torch.Tensor, torch.Tensor):
@@ -42,8 +43,8 @@ class DatasetFolder(data.Dataset):
 
 
 def get_loader(path: str, features_size: int, instances_size: int, classes_size: int, meta: MetaFeaturesCollector,
-               lambdas: LambdaFeaturesCollector, batch_size: int, num_workers: int):
-    datasets_inner = DatasetFolder(path, features_size, instances_size, classes_size, meta, lambdas)
+               lambdas: LambdaFeaturesCollector, batch_size: int, num_workers: int, train_meta: bool = True):
+    datasets_inner = DatasetFolder(path, features_size, instances_size, classes_size, meta, lambdas, train_meta)
 
     data_loader = data.DataLoader(
         dataset=datasets_inner,
