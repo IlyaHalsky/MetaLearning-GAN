@@ -8,6 +8,7 @@ from meta_gan.DatasetLoader import get_loader
 from meta_gan.Models import Generator, Discriminator
 from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
 from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
+from sklearn.neighbors import KNeighborsClassifier
 
 if __name__ == '__main__':
     datasize = 64
@@ -42,6 +43,12 @@ if __name__ == '__main__':
         lambdas_list_test.append(lambdas_o)
 
     dt = DecisionTreeClassifier(random_state=0)
+    dt.fit(meta_list, lambdas_list)
+    pred = dt.predict(meta_list_test)
+    score = mean_squared_error(pred, lambdas_list_test)
+    print(score)
+
+    dt = KNeighborsClassifier(n_neighbors=25)
     dt.fit(meta_list, lambdas_list)
     pred = dt.predict(meta_list_test)
     score = mean_squared_error(pred, lambdas_list_test)

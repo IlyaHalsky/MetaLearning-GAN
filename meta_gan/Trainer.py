@@ -135,6 +135,7 @@ class Trainer:
                 fake_data = self.generator(noise, metas)
                 fake_metas = self.getMeta(fake_data)
                 results.extend(self.getDistance(fake_metas, metas))
+            logging.info(f'{epoch}:{np.mean(np.array(results))}')
             print(np.mean(np.array(results)))
 
             for i, data in enumerate(self.data_loader):
@@ -158,7 +159,8 @@ class Trainer:
 
                 # Get D on fake
                 fake_data = self.generator(noise, metas)
-                fake_outputs = self.discriminator(fake_data, metas)
+                fake_data_metas = self.getMeta(fake_data)
+                fake_outputs = self.discriminator(fake_data, fake_data_metas)
                 fake_lambdas = self.getLambda(fake_data)
                 d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
                 d_fake_rf_loss = self.mse(fake_outputs[:, :1], ones)
