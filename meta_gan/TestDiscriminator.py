@@ -5,6 +5,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 from torch.autograd import Variable
 from torch.nn import MSELoss
+import numpy as np
 
 from meta_gan.DatasetLoader import get_loader
 from meta_gan.Models import Generator, Discriminator
@@ -14,7 +15,7 @@ from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollec
 if __name__ == '__main__':
     datasize = 64
     z_size = 100
-    batch_size = 100
+    batch_size = 911
     workers = 5
     lambdas = LambdaFeaturesCollector(16, 64)
     metas = MetaFeaturesCollector(16, 64)
@@ -44,5 +45,5 @@ if __name__ == '__main__':
         real_outputs = discriminator(dataset, metas)
         d_real_labels_loss = mse(real_outputs[:, 1:], lambdas)
         loss.append(d_real_labels_loss.cpu().detach().numpy())
-
     print(loss)
+    print(np.mean(loss))

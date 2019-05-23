@@ -225,8 +225,8 @@ if __name__ == '__main__':
     target_instances = 64
     target_classes = 2
     raw_data_str = "./datasets/np_raw/"
-    done_data_str = f"./datasets/processed_{target_features}_{target_instances}_{target_classes}/"
-    done_data_str_raw = f"./datasets/processed_{target_features}_{target_instances}_{target_classes}/raw"
+    done_data_str = f"./datasets/dprocessed_{target_features}_{target_instances}_{target_classes}/"
+    done_data_str_raw = f"./datasets/dprocessed_{target_features}_{target_instances}_{target_classes}/raw"
     done_data_str_path = Path(f'{done_data_str}')
     done_data_str_path.mkdir(parents=True, exist_ok=True)
     done_data_str_raw_path = Path(f'{done_data_str_raw}')

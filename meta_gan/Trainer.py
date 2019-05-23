@@ -15,7 +15,7 @@ from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCo
 from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
 import logging
 
-logging.basicConfig(format='%(asctime)s %(message)s', filename='train.log', level=logging.DEBUG,
+logging.basicConfig(format='%(asctime)s %(message)s', filename='train2005.log', level=logging.DEBUG,
                     datefmt='%d-%m %H:%M:%S')
 
 
@@ -34,7 +34,7 @@ class Trainer:
         self.save_period = 5
         self.continue_from = continue_from
 
-        self.models_path = "./models"
+        self.models_path = "./models2005"
 
         self.lambdas = LambdaFeaturesCollector(self.features, self.instances)
         self.metas = MetaFeaturesCollector(self.features, self.instances)
@@ -42,7 +42,7 @@ class Trainer:
                                       self.features, self.instances, self.classes, self.metas,
                                       self.lambdas, self.batch_size,
                                       self.workers)
-        self.test_loader = get_loader(f"../processed_data/test/", 16, 64, 2, self.metas, self.lambdas, 100, 5,
+        self.test_loader = get_loader(f"../processed_data/test/", 16, 64, 2, self.metas, self.lambdas, 228, 5,
                                       train_meta=False)
 
         if continue_from == 0:
@@ -123,9 +123,19 @@ class Trainer:
         total_steps = len(self.data_loader)
         logging.info(f'Starting training...')
         for epoch in range(self.continue_from, self.num_epochs):
-            results = []
-            print("Starting test:")
+            loss = []
             for i, data in enumerate(self.test_loader):
+                print(i)
+                dataset = self.to_variable(data[0])
+                metas = self.to_variable(data[1])
+                lambdas = self.to_variable(data[2])
+                real_outputs = self.discriminator(dataset, metas)
+                d_real_labels_loss = self.mse(real_outputs[:, 1:], lambdas)
+                loss.append(d_real_labels_loss.cpu().detach().numpy())
+            logging.info(f'{epoch}d:{np.mean(loss)}')
+            results = []
+            for i, data in enumerate(self.test_loader):
+                print(i)
                 metas = self.to_variable(data[1])
                 batch_size = data[0].size(0)
                 noise = torch.randn(batch_size, 100)
@@ -135,8 +145,7 @@ class Trainer:
                 fake_data = self.generator(noise, metas)
                 fake_metas = self.getMeta(fake_data)
                 results.extend(self.getDistance(fake_metas, metas))
-            logging.info(f'{epoch}:{np.mean(np.array(results))}')
-            print(np.mean(np.array(results)))
+            logging.info(f'{epoch}g:{np.mean(np.array(results))}')
 
             for i, data in enumerate(self.data_loader):
                 dataset = self.to_variable(data[0])
