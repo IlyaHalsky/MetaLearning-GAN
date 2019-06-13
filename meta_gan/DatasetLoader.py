@@ -21,7 +21,6 @@ class DatasetFolder(data.Dataset):
             if not os.path.isdir(path):
                 paths.append(path)
         self.data_paths = paths
-        self.data_names = list(map(lambda x: x.split('/')[-1].split('.')[0], paths))
         self.meta_features = meta
         if train_meta:
             self.meta_features.train(self.root)
@@ -29,13 +28,12 @@ class DatasetFolder(data.Dataset):
 
     def __getitem__(self, index) -> (torch.Tensor, torch.Tensor, torch.Tensor):
         data_path = self.data_paths[index]
-        data_name = self.data_names[index]
         data_np = np.load(data_path)
         dataset_tensor = torch.from_numpy(data_np).float().view((self.classes, self.instances, self.features))
 
-        meta_tensor = self.meta_features.get(data_np, data_name)
+        meta_tensor = self.meta_features.get(data_np)
         meta_tensor = meta_tensor.view(self.meta_features.getLength(), 1, 1)
-        lambda_tensor = self.lambda_features.get(data_np, name_in=data_name)
+        lambda_tensor = self.lambda_features.get(data_np)
         return dataset_tensor, meta_tensor, lambda_tensor
 
     def __len__(self):

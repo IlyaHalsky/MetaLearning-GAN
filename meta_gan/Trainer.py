@@ -15,12 +15,14 @@ from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCo
 from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
 import logging
 
-logging.basicConfig(format='%(asctime)s %(message)s', filename='train2005.log', level=logging.DEBUG,
+from meta_gan.feature_extraction.MetaZerosCollector import MetaZerosCollector
+
+logging.basicConfig(format='%(asctime)s %(message)s', filename='1306_LM.log', level=logging.DEBUG,
                     datefmt='%d-%m %H:%M:%S')
 
 
 class Trainer:
-    def __init__(self, num_epochs: int = 500, cuda: bool = True, continue_from: int = 0):
+    def __init__(self, num_epochs: int = 21, cuda: bool = True, continue_from: int = 0, data_prefix=''):
         self.features = 16
         self.instances = 64
         self.classes = 2
@@ -33,16 +35,19 @@ class Trainer:
         self.log_step_print = 50
         self.save_period = 5
         self.continue_from = continue_from
+        self.data_prefix = data_prefix
 
-        self.models_path = "./models2005"
+        self.models_path = "./models1206_d"
 
         self.lambdas = LambdaFeaturesCollector(self.features, self.instances)
         self.metas = MetaFeaturesCollector(self.features, self.instances)
-        self.data_loader = get_loader(f"../processed_data/processed_{self.features}_{self.instances}_{self.classes}/",
-                                      self.features, self.instances, self.classes, self.metas,
-                                      self.lambdas, self.batch_size,
-                                      self.workers)
-        self.test_loader = get_loader(f"../processed_data/test/", 16, 64, 2, self.metas, self.lambdas, 228, 5,
+        self.data_loader = get_loader(
+            f"../processed_data/{data_prefix}processed_{self.features}_{self.instances}_{self.classes}/",
+            self.features, self.instances, self.classes, self.metas,
+            self.lambdas, self.batch_size,
+            self.workers)
+        self.test_loader = get_loader(f"../processed_data/{data_prefix}test/", 16, 64, 2, self.metas, self.lambdas, 228,
+                                      5,
                                       train_meta=False)
 
         if continue_from == 0:
@@ -78,9 +83,6 @@ class Trainer:
         self.d_optimizer = optim.Adam(self.discriminator.parameters(),
                                       self.lr, [self.beta1, self.beta2])
 
-        self.cross_entropy = BCEWithLogitsLoss()
-        if self.cuda:
-            self.cross_entropy.cuda()
         self.mse = MSELoss()
         if self.cuda:
             self.mse.cuda()
@@ -121,11 +123,10 @@ class Trainer:
 
     def train(self):
         total_steps = len(self.data_loader)
-        logging.info(f'Starting training...')
+        logging.info(f'Starting training... {self.data_prefix}')
         for epoch in range(self.continue_from, self.num_epochs):
             loss = []
             for i, data in enumerate(self.test_loader):
-                print(i)
                 dataset = self.to_variable(data[0])
                 metas = self.to_variable(data[1])
                 lambdas = self.to_variable(data[2])
@@ -135,7 +136,6 @@ class Trainer:
             logging.info(f'{epoch}d:{np.mean(loss)}')
             results = []
             for i, data in enumerate(self.test_loader):
-                print(i)
                 metas = self.to_variable(data[1])
                 batch_size = data[0].size(0)
                 noise = torch.randn(batch_size, 100)
@@ -171,7 +171,7 @@ class Trainer:
                 fake_data_metas = self.getMeta(fake_data)
                 fake_outputs = self.discriminator(fake_data, fake_data_metas)
                 fake_lambdas = self.getLambda(fake_data)
-                d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
+                d_fake_labels_loss = self.mse(fake_outputs[:, 1:], fake_lambdas)
                 d_fake_rf_loss = self.mse(fake_outputs[:, :1], ones)
                 d_fake_loss = 0.7 * d_fake_rf_loss + 0.6 * d_fake_labels_loss
 
@@ -199,12 +199,12 @@ class Trainer:
                 g_loss.backward()
                 self.g_optimizer.step()
 
-                # logging
-                if (i + 1) % self.log_step == 0:
-                    log = (
-                        f'[[{epoch},{i}],[{d_real_rf_loss},{d_real_labels_loss},{d_fake_rf_loss},{d_fake_labels_loss}],[{g_fake_rf_loss},{g_fake_meta_loss}]]'
-                    )
-                    logging.info(log)
+                # # logging
+                # if (i + 1) % self.log_step == 0:
+                #     log = (
+                #         f'[[{epoch},{i}],[{d_real_rf_loss},{d_real_labels_loss},{d_fake_rf_loss},{d_fake_labels_loss}],[{g_fake_rf_loss},{g_fake_meta_loss}]]'
+                #     )
+                #     logging.info(log)
                 if (i + 1) % self.log_step_print == 0:
                     print((
                         f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
@@ -226,4 +226,6 @@ class Trainer:
 
 if __name__ == '__main__':
     trainer = Trainer()
+    trainer.train()
+    trainer = Trainer(data_prefix='d')
     trainer.train()
