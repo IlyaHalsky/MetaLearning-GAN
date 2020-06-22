@@ -5,24 +5,19 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
 
-from meta_gan.DatasetLoader import get_loader
-from meta_gan.Models import Generator, Discriminator
-from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
-from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
+from DatasetLoader import get_loader
+from Models import Generator, Discriminator
+from feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
+from feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
 from sklearn.neighbors import KNeighborsClassifier
+import os
 import numpy as np
+import time
 
-
-def maha(x_meta, y_meta):
-    from scipy.spatial.distance import mahalanobis
-    V = np.cov(np.array([x_meta, y_meta]).T)
-    V[np.diag_indices_from(V)] += 0.1
-    IV = np.linalg.inv(V)
-    D = mahalanobis(x_meta, y_meta, IV)
-    return D
-
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 if __name__ == '__main__':
+    np.random.seed(int(time.time()))
     datasize = 64
     z_size = 100
     batch_size = 1
@@ -44,6 +39,7 @@ if __name__ == '__main__':
 
     meta_list_test = []
     lambdas_list_test = []
+
     for i, (data, meta, lambda_l) in tqdm(enumerate(datatest)):
         meta_o = meta[:, :].numpy()
         meta_o = meta_o.ravel()
@@ -52,27 +48,35 @@ if __name__ == '__main__':
         lambdas_o = lambda_l[:, :].numpy().astype(int).ravel().tolist()
         lambdas_list_test.append(lambdas_o)
 
-    # mins = []
-    # for test in tqdm(meta_list_test):
-    #     tmin = 0.0
-    #     for train in meta_list:
-    #         tmin += maha(test, train)
-    #     mins.append(tmin/8000)
-    #
-    # print(mins)
-    # print(np.mean(np.array(mins)))
+    dt = DecisionTreeClassifier(random_state=0)
+    dt.fit(meta_list, lambdas_list)
+    pred = dt.predict(meta_list_test)
+    l = 0
+    i = 0
+    for pr in pred:
+        winners = np.argwhere(pr == np.amax(pr)).flatten().tolist()
+        for winner in winners:
+            if lambdas_list_test[i][winner] == 1.0:
+                l += 1
+                break
+        i += 1
+    score = l/len(lambdas_list_test)
+    print(score)
 
-    # dt = DecisionTreeClassifier(random_state=0)
-    # dt.fit(meta_list, lambdas_list)
-    # pred = dt.predict(meta_list_test)
-    # score = mean_squared_error(pred, lambdas_list_test)
-    # print(score)
-    #
-    # dt = KNeighborsClassifier(n_neighbors=25)
-    # dt.fit(meta_list, lambdas_list)
-    # pred = dt.predict(meta_list_test)
-    # score = mean_squared_error(pred, lambdas_list_test)
-    # print(score)
+    dt = KNeighborsClassifier(n_neighbors=25)
+    dt.fit(meta_list, lambdas_list)
+    pred = dt.predict(meta_list_test)
+    l = 0
+    i = 0
+    for pr in pred:
+        winners = np.argwhere(pr == np.amax(pr)).flatten().tolist()
+        for winner in winners:
+            if lambdas_list_test[i][winner] == 1.0:
+                l += 1
+                break
+        i += 1
+    score = l / len(lambdas_list_test)
+    print(score)
 
     dt = MLPClassifier(random_state=0)
     c = np.unique(lambdas_list)
@@ -80,5 +84,14 @@ if __name__ == '__main__':
         print(i)
         dt.partial_fit(meta_list, lambdas_list, classes=c)
         pred = dt.predict(meta_list_test)
-        score = mean_squared_error(pred, lambdas_list_test)
+        l = 0
+    i = 0
+    for pr in pred:
+        winners = np.argwhere(pr == np.amax(pr)).flatten().tolist()
+        for winner in winners:
+            if lambdas_list_test[i][winner] == 1.0:
+                l += 1
+                break
+        i += 1
+    score = l / len( lambdas_list_test)
         print(score)
