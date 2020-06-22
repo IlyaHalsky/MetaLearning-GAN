@@ -27,7 +27,6 @@ class LambdaFeaturesCollector:
     def __init__(self, features_size: int, instances_size: int, models=None, binary: bool = True):
         if models is None:
             models = self.models_default
-        self.cache = {}
         self.models = models
         self.binary = binary
         self.features = features_size
@@ -44,30 +43,25 @@ class LambdaFeaturesCollector:
     def labels(self) -> np.ndarray:
         return np.append(np.zeros(self.instances), np.ones(self.instances))
 
-    def get(self, stacked: np.ndarray, name_in: str = None) -> torch.Tensor:
-        if (name_in is not None) and (name_in in self.cache):
-            lambdas = self.cache[name_in]
+    def get(self, stacked: np.ndarray) -> torch.Tensor:
+        x = self.data(stacked[0], stacked[1])
+        y = self.labels()
+        lambda_features = []
+        for model_in in self.models:
+            model = clone(model_in)
+            scores = cross_val_score(model, x, y, cv=KFold(3, shuffle=True, random_state=0), n_jobs=self.jobs)
+            score = np.average(scores)
+            lambda_features.append(score)
+        av_scores = np.array(lambda_features)
+        if self.binary:
+            zeros = np.zeros((self.getLength(),), dtype=float)
+            max_value = av_scores[av_scores.argmax()]
+            for i in range(self.getLength()):
+                if av_scores[i] == max_value:
+                    zeros[i] = 1.0
+            lambdas = zeros
         else:
-            x = self.data(stacked[0], stacked[1])
-            y = self.labels()
-            lambda_features = []
-            for model_in in self.models:
-                model = clone(model_in)
-                scores = cross_val_score(model, x, y, cv=KFold(3, shuffle=True, random_state=0), n_jobs=self.jobs)
-                score = np.average(scores)
-                lambda_features.append(score)
-            av_scores = np.array(lambda_features)
-            if self.binary:
-                zeros = np.zeros((self.getLength(),), dtype=float)
-                max_value = av_scores[av_scores.argmax()]
-                for i in range(self.getLength()):
-                    if av_scores[i] == max_value:
-                        zeros[i] = 1.0
-                lambdas = zeros
-            else:
-                lambdas = av_scores
-            if name_in is not None:
-                self.cache[name_in] = lambdas
+            lambdas = av_scores
         return torch.from_numpy(lambdas).float()
 
 
@@ -82,6 +76,6 @@ if __name__ == '__main__':
     results = []
     for name in tqdm(only_files):
         stacked = np.load(f'{path}{name}')
-        results.append(lambdas_lul.get(stacked, name).numpy())
+        results.append(lambdas_lul.get(stacked).numpy())
     results = np.array(results)
     print(np.mean(results, axis=0))
