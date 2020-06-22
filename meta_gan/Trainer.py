@@ -9,14 +9,15 @@ from torch.autograd import Variable
 from torch.nn import BCEWithLogitsLoss, MSELoss
 import numpy as np
 
-from meta_gan.DatasetLoader import get_loader
-from meta_gan.Models import Generator, Discriminator
-from meta_gan.feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
-from meta_gan.feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
+from DatasetLoader import get_loader
+from Models import Generator, Discriminator
+from feature_extraction.LambdaFeaturesCollector import LambdaFeaturesCollector
+from feature_extraction.MetaFeaturesCollector import MetaFeaturesCollector
 import logging
 
 logging.basicConfig(format='%(asctime)s %(message)s', filename='train2005.log', level=logging.DEBUG,
                     datefmt='%d-%m %H:%M:%S')
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 class Trainer:
@@ -34,7 +35,7 @@ class Trainer:
         self.save_period = 5
         self.continue_from = continue_from
 
-        self.models_path = "./models2005"
+        self.models_path = "./models_grid"
 
         self.lambdas = LambdaFeaturesCollector(self.features, self.instances)
         self.metas = MetaFeaturesCollector(self.features, self.instances)
@@ -124,8 +125,9 @@ class Trainer:
         logging.info(f'Starting training...')
         for epoch in range(self.continue_from, self.num_epochs):
             loss = []
+            q = 0
             for i, data in enumerate(self.test_loader):
-                print(i)
+                q += 1
                 dataset = self.to_variable(data[0])
                 metas = self.to_variable(data[1])
                 lambdas = self.to_variable(data[2])
@@ -134,8 +136,9 @@ class Trainer:
                 loss.append(d_real_labels_loss.cpu().detach().numpy())
             logging.info(f'{epoch}d:{np.mean(loss)}')
             results = []
+            q = 0
             for i, data in enumerate(self.test_loader):
-                print(i)
+                q += 1
                 metas = self.to_variable(data[1])
                 batch_size = data[0].size(0)
                 noise = torch.randn(batch_size, 100)
@@ -144,10 +147,12 @@ class Trainer:
 
                 fake_data = self.generator(noise, metas)
                 fake_metas = self.getMeta(fake_data)
-                results.extend(self.getDistance(fake_metas, metas))
+                results.extend(self.mse(fake_metas, metas))
             logging.info(f'{epoch}g:{np.mean(np.array(results))}')
 
+            q = 0
             for i, data in enumerate(self.data_loader):
+                q += 1
                 dataset = self.to_variable(data[0])
                 metas = self.to_variable(data[1])
                 lambdas = self.to_variable(data[2])
@@ -171,7 +176,7 @@ class Trainer:
                 fake_data_metas = self.getMeta(fake_data)
                 fake_outputs = self.discriminator(fake_data, fake_data_metas)
                 fake_lambdas = self.getLambda(fake_data)
-                d_fake_labels_loss = self.cross_entropy(fake_outputs[:, 1:], fake_lambdas)
+                d_fake_labels_loss = self.mse(fake_outputs[:, 1:], fake_lambdas)
                 d_fake_rf_loss = self.mse(fake_outputs[:, :1], ones)
                 d_fake_loss = 0.7 * d_fake_rf_loss + 0.6 * d_fake_labels_loss
 
@@ -200,17 +205,17 @@ class Trainer:
                 self.g_optimizer.step()
 
                 # logging
-                if (i + 1) % self.log_step == 0:
-                    log = (
+                #if (q + 1) % self.log_step == 0:
+                log = (
                         f'[[{epoch},{i}],[{d_real_rf_loss},{d_real_labels_loss},{d_fake_rf_loss},{d_fake_labels_loss}],[{g_fake_rf_loss},{g_fake_meta_loss}]]'
                     )
-                    logging.info(log)
-                if (i + 1) % self.log_step_print == 0:
-                    print((
-                        f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{i}/{total_steps}],'
+                logging.info(log)
+                #if (q + 1) % self.log_step_print == 0:
+                print((
+                        f'[{datetime.now()}] Epoch[{epoch}/{self.num_epochs}], Step[{q}/{total_steps}],'
                         f' D_losses: [{d_real_rf_loss}|{d_real_labels_loss}|{d_fake_rf_loss}|{d_fake_labels_loss}], '
                         f'G_losses:[{g_fake_rf_loss}|{g_fake_meta_loss}]'
-                    ))
+                ))
 
             # saving
             if (epoch + 1) % self.save_period == 0:
@@ -225,5 +230,5 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    trainer = Trainer()
+    trainer = Trainer(50)
     trainer.train()
