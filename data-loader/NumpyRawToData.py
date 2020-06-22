@@ -141,7 +141,7 @@ def sortData(zero_in: np.ndarray, one_in: np.ndarray) -> (np.ndarray, np.ndarray
 
 
 def writeData(name_in: str, zero_num: int, one_num: int, zero_in: np.ndarray, one_in: np.ndarray) -> bool:
-    zero_sorted, one_sorted = sortData(zero_in, one_in)
+    zero_sorted, one_sorted = zero_in, one_in#sortData(zero_in, one_in)
     raw_path = f'{done_data_str_raw}/{name_in}/'
     raw_name = f'{raw_path}{name_in}_{zero_num}_{one_num}'
     path = Path(raw_path)
@@ -225,8 +225,8 @@ if __name__ == '__main__':
     target_instances = 64
     target_classes = 2
     raw_data_str = "./datasets/np_raw/"
-    done_data_str = f"./datasets/dprocessed_{target_features}_{target_instances}_{target_classes}/"
-    done_data_str_raw = f"./datasets/dprocessed_{target_features}_{target_instances}_{target_classes}/raw"
+    done_data_str = f"./datasets/processed_{target_features}_{target_instances}_{target_classes}/"
+    done_data_str_raw = f"./datasets/processed_{target_features}_{target_instances}_{target_classes}/raw"
     done_data_str_path = Path(f'{done_data_str}')
     done_data_str_path.mkdir(parents=True, exist_ok=True)
     done_data_str_raw_path = Path(f'{done_data_str_raw}')
